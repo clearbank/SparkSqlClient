@@ -1,0 +1,39 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29025.244
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{E46AA759-36C8-4E05-B225-342C152C2BEA}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{3C783ED8-E218-4975-9E5E-002C06DBE0A9}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SparkSqlClient", "src\SparkSqlClient\SparkSqlClient.csproj", "{CD089F52-69D3-46E9-9303-E62E86682E87}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SparkSqlClient.Test", "tests\SparkSqlClient.Test\SparkSqlClient.Test.csproj", "{CAF4D09B-C5FE-448B-AC2A-BAF32C6AFD88}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CD089F52-69D3-46E9-9303-E62E86682E87}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD089F52-69D3-46E9-9303-E62E86682E87}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD089F52-69D3-46E9-9303-E62E86682E87}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD089F52-69D3-46E9-9303-E62E86682E87}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CAF4D09B-C5FE-448B-AC2A-BAF32C6AFD88}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAF4D09B-C5FE-448B-AC2A-BAF32C6AFD88}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAF4D09B-C5FE-448B-AC2A-BAF32C6AFD88}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAF4D09B-C5FE-448B-AC2A-BAF32C6AFD88}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{CD089F52-69D3-46E9-9303-E62E86682E87} = {E46AA759-36C8-4E05-B225-342C152C2BEA}
+		{CAF4D09B-C5FE-448B-AC2A-BAF32C6AFD88} = {3C783ED8-E218-4975-9E5E-002C06DBE0A9}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F754FA88-AF3A-488A-9502-4AF31ED7C1FB}
+	EndGlobalSection
+EndGlobal

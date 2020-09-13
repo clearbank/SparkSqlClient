@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>SparkSqlClient</AssemblyName>
+    <RootNamespace>SparkSqlClient</RootNamespace>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Alex Davies</Authors>
+    <Company>Codecutout</Company>
+    <Description>SparkSqlClient provides a native dotnet connection to the spark thrift server, allowing the execution of SQL statements against a spark server using the DbConnection interface.</Description>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DocumentationFile></DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ApacheThrift" Version="0.13.0.1" />
+  </ItemGroup>
+
+</Project>
