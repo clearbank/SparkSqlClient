@@ -119,15 +119,31 @@ namespace SparkThrift.Test
         }
 
         [Fact]
-        public async Task WhenDapperShouldExecuteLongRunningQuery()
+        public async Task WhenNullFirstOfManyItemsShouldReturn()
         {
             await using var conn = new SparkConnection(Config.ConnectionString);
             await conn.OpenAsync();
 
-            var result = await conn.QueryFirstAsync<int>("SELECT sleep(60000)");
+            var tableName = DataFactory.TableName();
+            int order = 0;
+            await DataFactory.DropAndCreateTable(conn, tableName, new[] { "order INT", "value INT" });
 
-            Assert.Equal(60000, result);
+            await conn.ExecuteAsync($"INSERT INTO {tableName} VALUES ({order++}, null)");
+
+            for (var i = 0; i < 16; i++)
+            {
+                await conn.ExecuteAsync($"INSERT INTO {tableName} VALUES ({order++}, {i+1})");
+            }
+
+            var result = await conn.QueryAsync<int?>($"SELECT value FROM {tableName} ORDER BY order");
+
+            var resultList = result.ToList();
+            Assert.Equal(17, resultList.Count);
+            Assert.Equal(new int?[]{null}.Concat(Enumerable.Range(1,16).Cast<int?>()).ToList(), resultList);
+            
         }
+
+
 
     }
 }

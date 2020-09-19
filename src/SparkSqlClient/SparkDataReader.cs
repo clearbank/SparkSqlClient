@@ -270,7 +270,8 @@ namespace SparkSqlClient
 
         public override bool IsDBNull(int ordinal)
         {
-            return GetColumnByIndex(columnNullBitArray, ordinal).Get(currentRowOffset);
+            var nullBitArray = GetColumnByIndex(columnNullBitArray, ordinal);
+            return currentRowOffset < nullBitArray.Count && nullBitArray.Get(currentRowOffset);
         }
 
         public override int FieldCount => Metadata.Count;
