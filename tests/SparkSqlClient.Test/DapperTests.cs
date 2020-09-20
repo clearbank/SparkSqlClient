@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using SparkSqlClient;
@@ -127,13 +129,12 @@ namespace SparkThrift.Test
             var tableName = DataFactory.TableName();
             int order = 0;
             await DataFactory.DropAndCreateTable(conn, tableName, new[] { "order INT", "value INT" });
-
+           
             await conn.ExecuteAsync($"INSERT INTO {tableName} VALUES ({order++}, null)");
 
-            for (var i = 0; i < 16; i++)
-            {
-                await conn.ExecuteAsync($"INSERT INTO {tableName} VALUES ({order++}, {i+1})");
-            }
+            Task.WaitAll(Enumerable.Range(1, 16).Select(i => 
+                conn.ExecuteAsync($"INSERT INTO {tableName} VALUES ({Interlocked.Increment(ref order)}, {i})")
+            ).ToArray());
 
             var result = await conn.QueryAsync<int?>($"SELECT value FROM {tableName} ORDER BY order");
 
@@ -141,6 +142,35 @@ namespace SparkThrift.Test
             Assert.Equal(17, resultList.Count);
             Assert.Equal(new int?[]{null}.Concat(Enumerable.Range(1,16).Cast<int?>()).ToList(), resultList);
             
+        }
+
+        [Fact]
+        public async Task WhenSlowQueriesShouldTimeout()
+        {
+            await using var conn = new SparkConnection(Config.ConnectionString);
+            await conn.OpenAsync();
+
+            var tableName = DataFactory.TableName();
+           
+            int order = 0;
+            await DataFactory.CreateTable(conn, tableName, new[] { "order INT", "value INT" });
+            Task.WaitAll(Enumerable.Range(1, 5).Select(async _ =>
+            {
+                await using var insertConn = new SparkConnection(Config.ConnectionString);
+                await insertConn.OpenAsync();
+                Task.WaitAll(Enumerable.Range(1, 20).Select(async i =>
+                     await insertConn.ExecuteAsync($"INSERT INTO {tableName} VALUES ({ Interlocked.Increment(ref order)}, {i})")).ToArray()
+                );
+            }).ToArray());
+
+            var sw = Stopwatch.StartNew();
+            var result = await conn.QueryAsync<int?>($"SELECT value FROM {tableName} ORDER BY random()");
+            sw.Stop();
+
+            var resultList = result.ToList();
+            Assert.Equal(17, resultList.Count);
+            Assert.Equal(new int?[] { null }.Concat(Enumerable.Range(1, 16).Cast<int?>()).ToList(), resultList);
+
         }
 
 

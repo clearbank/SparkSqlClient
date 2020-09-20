@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SparkSqlClient.exceptions;
 using SparkSqlClient.generated;
+using SparkSqlClient.servicewrappers;
 using Thrift.Protocol;
 using Thrift.Transport.Client;
 
@@ -17,7 +18,9 @@ namespace SparkSqlClient
     /// </summary>
     public sealed class SparkConnection : DbConnection
     {
-        internal readonly TCLIService.Client Client;
+        internal readonly TCLIService.IAsync Client;
+
+        private readonly TCLIService.Client _rawClient;
 
         internal readonly SparkConnectionStringBuilder ConnectionStringBuilder;
 
@@ -36,7 +39,7 @@ namespace SparkSqlClient
 
         public override string ServerVersion => throw new NotSupportedException($"{nameof(SparkConnection)} does not support reading {nameof(ServerVersion)}");
 
-        public override ConnectionState State => (Client.OutputProtocol?.Transport?.IsOpen ?? false) && SessionHandle != null ? ConnectionState.Open : ConnectionState.Closed;
+        public override ConnectionState State => (_rawClient.OutputProtocol?.Transport?.IsOpen ?? false) && SessionHandle != null ? ConnectionState.Open : ConnectionState.Closed;
 
 
 
@@ -45,10 +48,12 @@ namespace SparkSqlClient
             ConnectionStringBuilder = new SparkConnectionStringBuilder(connectionString);
 
             var authHeader = "Basic " + Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($"{ConnectionStringBuilder.UserId}:{ConnectionStringBuilder.Password}"));
-            Client = new TCLIService.Client(new TBinaryProtocol(new THttpTransport(new Uri(ConnectionStringBuilder.DataSource), new Dictionary<string, string>
+            _rawClient = new TCLIService.Client(new TBinaryProtocol(new THttpTransport(new Uri(ConnectionStringBuilder.DataSource), new Dictionary<string, string>
             {
                 { "Authorization", authHeader }
             })));
+
+            Client = new TCLIServiceSync(_rawClient);
         }
 
 
@@ -80,7 +85,7 @@ namespace SparkSqlClient
 
         public override async Task OpenAsync(CancellationToken cancellationToken)
         {
-            await Client.OpenTransportAsync(cancellationToken).ConfigureAwait(false);
+            await _rawClient.OpenTransportAsync(cancellationToken).ConfigureAwait(false);
             var sessionResponse = await Client.OpenSessionAsync(new TOpenSessionReq()
             {
                 Username = ConnectionStringBuilder.UserId,
@@ -88,7 +93,6 @@ namespace SparkSqlClient
             }, cancellationToken).ConfigureAwait(false);
 
             SparkOperationException.ThrowIfInvalidStatus(sessionResponse.Status);
-
             SessionHandle = sessionResponse.SessionHandle;
         }
 

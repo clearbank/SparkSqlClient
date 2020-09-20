@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Data.Common;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,6 +27,10 @@ namespace SparkSqlClient
             get => -1;
             set => throw new NotSupportedException($"{nameof(SparkCommand)} does not support setting {nameof(CommandTimeout)}");
         }
+
+        protected TimeSpan? CommandTimeoutTimespan =>
+            CommandTimeout <= 0 ? null : (TimeSpan?) TimeSpan.FromSeconds(CommandTimeout);
+
         public override CommandType CommandType
         {
             get => CommandType.Text;
@@ -93,9 +98,10 @@ namespace SparkSqlClient
                 _sparkConnection.SessionHandle,
                 CommandText,
                 DbParameterCollection,
+                CommandTimeoutTimespan,
                 cancellationToken).ConfigureAwait(false);
 
-            await CloseStatement(_sparkConnection.Client, operationHandle, cancellationToken);
+            await CloseStatement(_sparkConnection.Client, operationHandle, CancellationToken.None);
 
             // Although in the schema ModifiedRowCount does not appear to be ever set still returning it if its there
             return operationHandle.__isset.modifiedRowCount ? (int)operationHandle.ModifiedRowCount : -1;
@@ -141,7 +147,8 @@ namespace SparkSqlClient
                 _sparkConnection.Client,
                 _sparkConnection.SessionHandle, 
                 CommandText, 
-                DbParameterCollection, 
+                DbParameterCollection,
+                CommandTimeoutTimespan,
                 cancellationToken).ConfigureAwait(false);
 
             var metadataResponse = await _sparkConnection.Client.GetResultSetMetadataAsync(new TGetResultSetMetadataReq()
@@ -149,30 +156,83 @@ namespace SparkSqlClient
                 OperationHandle = operationHandle,
             }, cancellationToken).ConfigureAwait(false);
             SparkOperationException.ThrowIfInvalidStatus(metadataResponse.Status);
-
+            
             return new SparkDataReader(
                 _sparkConnection.Client, 
                 _sparkConnection.SessionHandle,
                 operationHandle,
                 metadataResponse.Schema,
-                async ()=> await CloseStatement(_sparkConnection.Client, operationHandle, cancellationToken));
+                async ()=> await CloseStatement(_sparkConnection.Client, operationHandle, CancellationToken.None));
         }
 
-        private static async Task<TOperationHandle> ExecuteStatement(TCLIService.Client client, TSessionHandle sessionHandle, string commandText, DbParameterCollection parameters, CancellationToken cancellationToken)
+        private static CancellationToken BuildTimeoutCancellationToken(TimeSpan? timespan, CancellationToken cancellationToken)
+        {
+            if (!timespan.HasValue) return cancellationToken;
+
+            var timeoutTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutTokenSource.CancelAfter(timespan.Value);
+            return timeoutTokenSource.Token;
+        }
+
+        private static async Task<TOperationHandle> ExecuteStatement(
+            TCLIService.IAsync client, 
+            TSessionHandle sessionHandle, 
+            string commandText, 
+            DbParameterCollection parameters, 
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
         {
             var parameterizedCommandText = ReplaceParameters(commandText, parameters);
+            cancellationToken = BuildTimeoutCancellationToken(timeout, cancellationToken);
 
             var executeStatementResponse = await client.ExecuteStatementAsync(new TExecuteStatementReq
             {
                 SessionHandle = sessionHandle,
-                Statement = parameterizedCommandText
+                Statement = parameterizedCommandText,
+                RunAsync = true,
+                
             }, cancellationToken).ConfigureAwait(false);
             SparkOperationException.ThrowIfInvalidStatus(executeStatementResponse.Status);
+
+            await WaitUntilOperationSuccess(client, executeStatementResponse.OperationHandle, cancellationToken);
 
             return executeStatementResponse.OperationHandle;
         }
 
-        private static async Task CloseStatement(TCLIService.Client client, TOperationHandle operationHandle, CancellationToken cancellationToken)
+        private static async Task WaitUntilOperationSuccess(TCLIService.IAsync client, TOperationHandle operationHandle, CancellationToken cancellationToken)
+        {
+            var exponentialPolling = new[]
+            {
+                TimeSpan.Zero,
+                TimeSpan.FromSeconds(0.5),
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(2),
+            }.Concat(Enumerable.Repeat(TimeSpan.FromSeconds(4), Int32.MaxValue));
+
+            foreach (var delay in exponentialPolling)
+            {
+                await Task.Delay(delay, cancellationToken);
+
+                var getOperationStatusResponse = await client.GetOperationStatusAsync(new TGetOperationStatusReq()
+                {
+                    OperationHandle = operationHandle,
+                }, cancellationToken).ConfigureAwait(false);
+                SparkOperationException.ThrowIfInvalidStatus(getOperationStatusResponse.Status);
+
+                if (getOperationStatusResponse.OperationState == TOperationState.FINISHED_STATE)
+                    return;
+                
+                if (new[]{TOperationState.RUNNING_STATE, TOperationState.PENDING_STATE, TOperationState.INITIALIZED_STATE}.Contains(getOperationStatusResponse.OperationState))
+                    continue;
+
+                if (getOperationStatusResponse.__isset.errorMessage)
+                    throw new SparkOperationException(getOperationStatusResponse.ErrorMessage, Enumerable.Empty<string>());
+
+                throw new SparkOperationException($"Operation has failed with status '{getOperationStatusResponse.OperationState}'", Enumerable.Empty<string>());
+            }
+        }
+
+        private static async Task CloseStatement(TCLIService.IAsync client, TOperationHandle operationHandle, CancellationToken cancellationToken)
         {
             var closeResponse = await client.CloseOperationAsync(new TCloseOperationReq()
             {

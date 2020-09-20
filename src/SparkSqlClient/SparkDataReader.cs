@@ -48,7 +48,7 @@ namespace SparkSqlClient
         }
 
 
-        protected TCLIService.Client Client { get; }
+        protected TCLIService.IAsync Client { get; }
         protected TOperationHandle OperationHandle { get; }
         protected int MaxPrefetchCount { get; } = 512;
         protected Func<Task> OnClose { get; }
@@ -62,7 +62,7 @@ namespace SparkSqlClient
         protected IReadOnlyList<BitArray> columnNullBitArray;
 
 
-        public SparkDataReader(TCLIService.Client client, TSessionHandle sessionHandle, TOperationHandle operationHandle, TTableSchema schema, Func<Task> onClose)
+        public SparkDataReader(TCLIService.IAsync client, TSessionHandle sessionHandle, TOperationHandle operationHandle, TTableSchema schema, Func<Task> onClose)
         {
             Client = client;
             OperationHandle = operationHandle;
