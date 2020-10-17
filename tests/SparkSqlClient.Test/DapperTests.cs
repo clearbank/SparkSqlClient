@@ -145,7 +145,7 @@ namespace SparkThrift.Test
         }
 
         [Fact]
-        public async Task WhenSlowQueriesShouldTimeout()
+        public async Task WhenParallelisationShouldSucceed()
         {
             await using var conn = new SparkConnection(Config.ConnectionString);
             await conn.OpenAsync();
@@ -153,24 +153,23 @@ namespace SparkThrift.Test
             var tableName = DataFactory.TableName();
            
             int order = 0;
-            await DataFactory.CreateTable(conn, tableName, new[] { "order INT", "value INT" });
-            Task.WaitAll(Enumerable.Range(1, 5).Select(async _ =>
+            await DataFactory.DropAndCreateTable(conn, tableName, new[] { "order INT", "value INT" });
+
+            await Task.WhenAll(Enumerable.Range(1, 5).Select(async _ =>
             {
                 await using var insertConn = new SparkConnection(Config.ConnectionString);
-                await insertConn.OpenAsync();
-                Task.WaitAll(Enumerable.Range(1, 20).Select(async i =>
-                     await insertConn.ExecuteAsync($"INSERT INTO {tableName} VALUES ({ Interlocked.Increment(ref order)}, {i})")).ToArray()
-                );
+                await insertConn.OpenAsync().ConfigureAwait(false);
+                await Task.WhenAll(Enumerable.Range(1, 5).Select(async i =>
+                {
+                    var values = string.Join(",", Enumerable.Range(1, 40000).Select(i => $"({ Interlocked.Increment(ref order)}, {i})"));
+                    await insertConn.ExecuteAsync($"INSERT INTO {tableName} VALUES {values}").ConfigureAwait(false);
+                }));
             }).ToArray());
 
-            var sw = Stopwatch.StartNew();
+
             var result = await conn.QueryAsync<int?>($"SELECT value FROM {tableName} ORDER BY random()");
-            sw.Stop();
-
             var resultList = result.ToList();
-            Assert.Equal(17, resultList.Count);
-            Assert.Equal(new int?[] { null }.Concat(Enumerable.Range(1, 16).Cast<int?>()).ToList(), resultList);
-
+            Assert.Equal(1000000, resultList.Count);
         }
 
 

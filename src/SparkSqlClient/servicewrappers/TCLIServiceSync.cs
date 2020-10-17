@@ -14,17 +14,20 @@ namespace SparkSqlClient.servicewrappers
     internal class TCLIServiceSync : TCLIServiceProxy
     {
         private readonly SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1, 1);
+        private readonly TCLIService.IAsync inner;
 
-        public TCLIServiceSync(TCLIService.IAsync inner) : base(inner)
+        public TCLIServiceSync(TCLIService.IAsync inner)
         {
+            this.inner = inner;
         }
 
-        public override async Task<TResult> Proxy<TResult>(string method, Func<Task<TResult>> action, CancellationToken cancellationToken = default(CancellationToken))
+
+        public override async Task<TResult> Proxy<TResult>(string method, Func<TCLIService.IAsync, CancellationToken, Task<TResult>> action, CancellationToken cancellationToken = default(CancellationToken))
         {
             await _semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                return await action();
+                return await action(inner, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

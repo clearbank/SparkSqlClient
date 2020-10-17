@@ -50,7 +50,6 @@ namespace SparkSqlClient
 
         protected TCLIService.IAsync Client { get; }
         protected TOperationHandle OperationHandle { get; }
-        protected int MaxPrefetchCount { get; } = 512;
         protected Func<Task> OnClose { get; }
 
         protected IReadOnlyList<ColumnMetadata> Metadata { get; }
@@ -316,7 +315,7 @@ namespace SparkSqlClient
             {
                 OperationHandle = OperationHandle,
                 Orientation = TFetchOrientation.FETCH_NEXT,
-                MaxRows = MaxPrefetchCount
+                MaxRows = int.MaxValue,
             }, cancellationToken).ConfigureAwait(false);
             SparkOperationException.ThrowIfInvalidStatus(result.Status);
             

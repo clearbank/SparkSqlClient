@@ -22,6 +22,11 @@ namespace SparkThrift.Test.Fixtures
             await CreateCommand(connection, $"CREATE TABLE {tableName} ({string.Join(",", columns)}) USING DELTA").ExecuteNonQueryAsync();
         }
 
+        public async Task CreateTable(DbConnection connection, string tableName, IEnumerable<string> columns)
+        {
+            await CreateCommand(connection, $"CREATE TABLE IF NOT EXISTS {tableName} ({string.Join(",", columns)}) USING DELTA").ExecuteNonQueryAsync();
+        }
+
 
         public string TableName([System.Runtime.CompilerServices.CallerMemberName] string tableName = "")
         {

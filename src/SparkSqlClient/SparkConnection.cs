@@ -112,5 +112,11 @@ namespace SparkSqlClient
             command.CommandText = commandText;
             return command;
         }
+
+        protected override void Dispose(bool disposing)
+        {
+            base.Dispose(disposing);
+            if (disposing) _rawClient.Dispose();
+        }
     }
 }

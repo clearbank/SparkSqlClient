@@ -101,7 +101,7 @@ namespace SparkSqlClient
                 CommandTimeoutTimespan,
                 cancellationToken).ConfigureAwait(false);
 
-            await CloseStatement(_sparkConnection.Client, operationHandle, CancellationToken.None);
+            await CloseStatement(_sparkConnection.Client, operationHandle, CancellationToken.None).ConfigureAwait(false);
 
             // Although in the schema ModifiedRowCount does not appear to be ever set still returning it if its there
             return operationHandle.__isset.modifiedRowCount ? (int)operationHandle.ModifiedRowCount : -1;
@@ -116,10 +116,10 @@ namespace SparkSqlClient
         {
             if (_sparkConnection.State != ConnectionState.Open) throw new InvalidOperationException("Session must be opened before executing a statement");
 
-            await using var reader = await ExecuteDbDataReaderAsync(CommandBehavior.Default, cancellationToken);
+            await using var reader = await ExecuteDbDataReaderAsync(CommandBehavior.Default, cancellationToken).ConfigureAwait(false);
             
-            if(!await reader.ReadAsync(cancellationToken))
-                throw new Exception();
+            if(!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+                throw new InvalidOperationException("Unable to read scaler result");
 
             return reader.GetValue(0);
         }
@@ -162,7 +162,7 @@ namespace SparkSqlClient
                 _sparkConnection.SessionHandle,
                 operationHandle,
                 metadataResponse.Schema,
-                async ()=> await CloseStatement(_sparkConnection.Client, operationHandle, CancellationToken.None));
+                async ()=> await CloseStatement(_sparkConnection.Client, operationHandle, CancellationToken.None).ConfigureAwait(false));
         }
 
         private static CancellationToken BuildTimeoutCancellationToken(TimeSpan? timespan, CancellationToken cancellationToken)
@@ -194,7 +194,7 @@ namespace SparkSqlClient
             }, cancellationToken).ConfigureAwait(false);
             SparkOperationException.ThrowIfInvalidStatus(executeStatementResponse.Status);
 
-            await WaitUntilOperationSuccess(client, executeStatementResponse.OperationHandle, cancellationToken);
+            await WaitUntilOperationSuccess(client, executeStatementResponse.OperationHandle, cancellationToken).ConfigureAwait(false);
 
             return executeStatementResponse.OperationHandle;
         }
@@ -211,7 +211,7 @@ namespace SparkSqlClient
 
             foreach (var delay in exponentialPolling)
             {
-                await Task.Delay(delay, cancellationToken);
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
 
                 var getOperationStatusResponse = await client.GetOperationStatusAsync(new TGetOperationStatusReq()
                 {
