@@ -8,7 +8,7 @@
     <Authors>Alex Davies</Authors>
     <Company>Codecutout</Company>
     <Description>SparkSqlClient provides a native dotnet connection to the spark thrift server, allowing the execution of SQL statements against a spark server using the DbConnection interface.</Description>
-    <Version>0.1.0</Version>
+    <Version>0.0.0</Version>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

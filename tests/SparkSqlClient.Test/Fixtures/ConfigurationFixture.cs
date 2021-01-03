@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 
-namespace SparkThrift.Test.Fixtures
+namespace SparkSqlClient.Test.Fixtures
 {
     public class ConfigurationFixture
     {
@@ -14,9 +14,9 @@ namespace SparkThrift.Test.Fixtures
         public ConfigurationFixture()
         {
             ConfigurationRoot = new ConfigurationBuilder()
-                .AddEnvironmentVariables()
                 .AddJsonFile("appsettings.json")
                 .AddJsonFile($"appsettings.debug.json", optional: true)
+                .AddEnvironmentVariables()
                 .Build();
         }
     }

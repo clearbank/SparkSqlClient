@@ -7,12 +7,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using SparkSqlClient;
-using SparkThrift.Test.Fixtures;
+using SparkSqlClient.Test.Fixtures;
 using Xunit;
 
-namespace SparkThrift.Test
+namespace SparkSqlClient.Test
 {
-    public class SparkCommandTests : IClassFixture<ConfigurationFixture>, IClassFixture<DataFactoryFixture>
+    public class SparkCommandTests : IClassFixture<ConfigurationFixture>, IClassFixture<DataFactoryFixture>, IClassFixture<StartClusterFixture>
     {
         public ConfigurationFixture Config { get; }
         public DataFactoryFixture DataFactory { get; }
@@ -36,11 +36,39 @@ namespace SparkThrift.Test
             });
 
             // Act
-            var result = await DataFactory.CreateCommand(conn, $@"INSERT INTO {table} VALUES 
+            var result = DataFactory.CreateCommand(conn, $@"INSERT INTO {table} VALUES 
+                    (1), (2), (3)").ExecuteNonQuery();
+            var resultAsync = await DataFactory.CreateCommand(conn, $@"INSERT INTO {table} VALUES 
                     (1), (2), (3)").ExecuteNonQueryAsync();
 
             // Assert
             Assert.Equal(-1, result);
+            Assert.Equal(-1, resultAsync);
+        }
+
+        [Fact]
+        public async Task WhenScalerShouldReturnFirstRow()
+        {
+            // Arrange
+            var table = DataFactory.TableName();
+            await using var conn = new SparkConnection(Config.ConnectionString);
+            await conn.OpenAsync();
+            await DataFactory.DropAndCreateTable(conn, table, new[]
+            {
+                "myInt INT"
+            });
+            await DataFactory.CreateCommand(conn, $@"INSERT INTO {table} VALUES 
+                    (1), (2), (3)").ExecuteNonQueryAsync();
+
+            // Act
+            var command = DataFactory.CreateCommand(conn, $@"SELECT * FROM {table} ORDER BY myInt DESC");
+            command.CommandTimeout = 1;
+            var result = command.ExecuteScalar();
+            var resultAsync = await command.ExecuteScalarAsync();
+
+            // Assert
+            Assert.Equal(3, result);
+            Assert.Equal(3, resultAsync);
         }
 
 
@@ -89,6 +117,66 @@ namespace SparkThrift.Test
             await Assert.ThrowsAsync<InvalidOperationException>(async () => await command.ExecuteScalarAsync());
             Assert.Throws<InvalidOperationException>(() => command.ExecuteNonQuery());
             await Assert.ThrowsAsync<InvalidOperationException>(async () => await command.ExecuteNonQueryAsync());
+        }
+
+
+
+        [Fact]
+        public async Task CommandTypeShouldNotBeSupported()
+        {
+            // Arrange
+            await using var conn = new SparkConnection(Config.ConnectionString);
+            var command = DataFactory.CreateCommand(conn, $"SELECT 1");
+
+            // Act and Assert
+            command.CommandType = System.Data.CommandType.Text;
+            Assert.Throws<NotSupportedException>(() => command.CommandType = System.Data.CommandType.StoredProcedure);
+        }
+
+        [Fact]
+        public async Task DesignTimeVisibleShouldNotBeSupported()
+        {
+            // Arrange
+            await using var conn = new SparkConnection(Config.ConnectionString);
+            var command = DataFactory.CreateCommand(conn, $"SELECT 1");
+
+            // Act and Assert
+            command.DesignTimeVisible = false;
+            Assert.Throws<NotSupportedException>(() => command.DesignTimeVisible = true);
+        }
+
+        [Fact]
+        public async Task UpdatedRowSourceShouldNotBeSupported()
+        {
+            // Arrange
+            await using var conn = new SparkConnection(Config.ConnectionString);
+            var command = DataFactory.CreateCommand(conn, $"SELECT 1");
+
+            // Act and Assert
+            command.UpdatedRowSource = System.Data.UpdateRowSource.None;
+            Assert.Throws<NotSupportedException>(() => command.UpdatedRowSource = System.Data.UpdateRowSource.FirstReturnedRecord);
+        }
+
+        [Fact]
+        public async Task CancelShouldNotBeSupported()
+        {
+            // Arrange
+            await using var conn = new SparkConnection(Config.ConnectionString);
+            var command = DataFactory.CreateCommand(conn, $"SELECT 1");
+
+            // Act and Assert
+            Assert.Throws<NotSupportedException>(() => command.Cancel());
+        }
+
+        [Fact]
+        public async Task PrepareShouldNotBeSupported()
+        {
+            // Arrange
+            await using var conn = new SparkConnection(Config.ConnectionString);
+            var command = DataFactory.CreateCommand(conn, $"SELECT 1");
+
+            // Act and Assert
+            Assert.Throws<NotSupportedException>(() => command.Prepare());
         }
     }
 

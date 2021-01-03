@@ -9,13 +9,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using SparkSqlClient;
 using SparkSqlClient.exceptions;
-using SparkThrift.Test.Fixtures;
+using SparkSqlClient.Test.Fixtures;
 using Thrift.Protocol;
 using Xunit;
 
-namespace SparkThrift.Test
+namespace SparkSqlClient.Test
 {
-    public class SparkDataReaderTests : IClassFixture<ConfigurationFixture>, IClassFixture<DataFactoryFixture>, IDisposable
+    public class SparkDataReaderTests : IClassFixture<ConfigurationFixture>, IClassFixture<DataFactoryFixture>, IClassFixture<StartClusterFixture>, IDisposable
     {
         public ConfigurationFixture Config { get; }
         public DataFactoryFixture DataFactory { get; }
@@ -231,7 +231,7 @@ namespace SparkThrift.Test
 
             void AssertInvalidOrdinal(Func<object> action)
             {
-                var ex = Assert.Throws<InvalidOrdinalException>(() => reader.IsDBNull(1));
+                var ex = Assert.Throws<InvalidOrdinalException>(action);
                 Assert.Equal(1, ex.Ordinal);
                 Assert.Equal(1, ex.ColumnCount);
             }
@@ -239,7 +239,10 @@ namespace SparkThrift.Test
             AssertInvalidOrdinal(() => reader.IsDBNull(1));
 
             AssertInvalidOrdinal(() => reader.GetValue(1));
-            AssertInvalidOrdinal(() => reader["notMyValue"]);
+
+            var ex = Assert.Throws<InvalidColumnNameException>(() => reader["notMyValue"]);
+            Assert.Equal("notMyValue", ex.ColumnName);
+            Assert.Equal(new[] { "myValue" }, ex.AvailableColumnNames);
 
             AssertInvalidOrdinal(() => reader.GetInt64(1));
             AssertInvalidOrdinal(() => reader.GetInt32(1));

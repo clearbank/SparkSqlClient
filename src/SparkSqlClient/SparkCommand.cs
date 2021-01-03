@@ -22,11 +22,7 @@ namespace SparkSqlClient
             set => _commandText = value;
         }
 
-        public override int CommandTimeout
-        {
-            get => -1;
-            set => throw new NotSupportedException($"{nameof(SparkCommand)} does not support setting {nameof(CommandTimeout)}");
-        }
+        public override int CommandTimeout { get; set; } = -1;
 
         protected TimeSpan? CommandTimeoutTimespan =>
             CommandTimeout <= 0 ? null : (TimeSpan?) TimeSpan.FromSeconds(CommandTimeout);
@@ -34,18 +30,30 @@ namespace SparkSqlClient
         public override CommandType CommandType
         {
             get => CommandType.Text;
-            set => throw new NotSupportedException($"{nameof(SparkCommand)} does not support setting {nameof(CommandType)}");
+            set 
+            {
+                if (value != CommandType)
+                    throw new NotSupportedException($"{nameof(SparkCommand)} does not support setting {nameof(CommandType)} to {value}");
+            }
         }
         public override bool DesignTimeVisible
         {
             get => false;
-            set => throw new NotSupportedException($"{nameof(SparkCommand)} does not support setting {nameof(DesignTimeVisible)}");
+            set
+            {
+                if (value != DesignTimeVisible)
+                    throw new NotSupportedException($"{nameof(SparkCommand)} does not support setting {nameof(DesignTimeVisible)}");
+            }
         }
 
         public override UpdateRowSource UpdatedRowSource
         {
             get => UpdateRowSource.None;
-            set => throw new NotSupportedException($"{nameof(SparkCommand)} does not support setting {nameof(UpdatedRowSource)}");
+            set
+            {
+                if (value != UpdatedRowSource)
+                    throw new NotSupportedException($"{nameof(SparkCommand)} does not support setting {nameof(UpdatedRowSource)}");
+            }
         }
 
         private SparkConnection _sparkConnection;
@@ -66,17 +74,16 @@ namespace SparkSqlClient
         protected override DbTransaction DbTransaction
         {
             get => null;
-            set => throw new NotSupportedException($"{nameof(SparkCommand)} does not support setting {nameof(DbTransaction)}");
+            set
+            {
+                if (value != DbTransaction)
+                    throw new NotSupportedException($"{nameof(SparkCommand)} does not support setting {nameof(DbTransaction)}");
+            }
         }
 
         public SparkCommand(SparkConnection connection) : base()
         {
             _sparkConnection = connection;
-        }
-
-        public SparkCommand(string cmdText, SparkConnection connection) : this(connection)
-        {
-            _commandText = cmdText;
         }
 
         public override void Cancel()
@@ -273,7 +280,7 @@ namespace SparkSqlClient
                     case DateTime dt:
                         return $"'{dt:yyyy-MM-dd HH:mm:ss.fff}'";
                     case byte b:
-                        // Spark bytes are signed while dotnets are not. Need to force a CAST
+                        // Spark bytes are signed while dotnet's are not. Need to force a CAST
                         return $"CAST({b} AS TINYINT)";
                     case byte[] ba:
                         // Encode binary as Base64

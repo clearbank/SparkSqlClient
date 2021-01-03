@@ -7,10 +7,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using SparkSqlClient;
-using SparkThrift.Test.Fixtures;
+using SparkSqlClient.exceptions;
+using SparkSqlClient.Test.Fixtures;
 using Xunit;
 
-namespace SparkThrift.Test
+namespace SparkSqlClient.Test
 {
     public class TypeRainbow
     {
@@ -48,7 +49,7 @@ namespace SparkThrift.Test
         public string MyMap { get; set; }
     }
 
-    public class DapperTests : IClassFixture<ConfigurationFixture>, IClassFixture<DataFactoryFixture>
+    public class DapperTests : IClassFixture<ConfigurationFixture>, IClassFixture<DataFactoryFixture>, IClassFixture<StartClusterFixture>
     {
         public ConfigurationFixture Config { get; }
         public DataFactoryFixture DataFactory { get; }
@@ -62,7 +63,8 @@ namespace SparkThrift.Test
         [Fact]
         public async Task WhenDapperShouldExecute()
         {
-            var date = new DateTime(2055, 3, 1, 21, 33, 43, 432);
+            var timestamp = new DateTime(2055, 3, 1, 21, 33, 43, 432);
+            var date = new DateTime(2055, 3, 1, 21, 33, 43, 432).Date;
 
             var table = DataFactory.TableName();
             await using var conn = new SparkConnection(Config.ConnectionString);
@@ -96,7 +98,7 @@ namespace SparkThrift.Test
                 MyDecimal = 99999999.99m,
                 MyString = "AAA",
                 MyDate = date,
-                MyTimestamp = date,
+                MyTimestamp = timestamp,
                 MyBinary = new byte[] {0x48, 0x65, 0x6c, 0x6c, 0x6f}
             });
 
@@ -113,8 +115,8 @@ namespace SparkThrift.Test
             Assert.Equal(99999999.99f, result.MyFloat);
             Assert.Equal(99999999.99m, result.MyDecimal);
             Assert.Equal("AAA", result.MyString);
-            Assert.Equal(date.Date, result.MyDate);
-            Assert.Equal(date, result.MyTimestamp);
+            Assert.Equal(date, result.MyDate);
+            Assert.Equal(timestamp, result.MyTimestamp);
             Assert.Equal(new byte[] {0x48, 0x65, 0x6c, 0x6c, 0x6f}, result.MyBinary);
             Assert.Equal(@"[""AAA"",""BBB"",""CCC""]", result.MyArray);
             Assert.Equal(@"{""AAA"":1,""BBB"":2,""CCC"":3}", result.MyMap);
@@ -170,6 +172,22 @@ namespace SparkThrift.Test
             var result = await conn.QueryAsync<int?>($"SELECT value FROM {tableName} ORDER BY random()");
             var resultList = result.ToList();
             Assert.Equal(1000000, resultList.Count);
+        }
+
+        [Fact]
+        public async Task WhenParameterMissingShouldThrow()
+        {
+            var table = DataFactory.TableName();
+            await using var conn = new SparkConnection(Config.ConnectionString);
+            await conn.OpenAsync();
+            await DataFactory.DropAndCreateTable(conn, table, new[] { "myString STRING NOT NULL" });
+
+            var ex = await Assert.ThrowsAsync<MissingParameterException>(() => conn.ExecuteAsync($@"INSERT INTO {table} VALUES (@DoesNotExist)", new
+            {
+                DoesExist = "test"
+            }));
+
+            Assert.Equal("DoesNotExist", ex.ParameterName);
         }
 
 

@@ -7,10 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using SparkSqlClient;
-using SparkThrift.Test.Fixtures;
+using SparkSqlClient.Test.Fixtures;
 using Xunit;
 
-namespace SparkThrift.Test
+namespace SparkSqlClient.Test
 {
     public class SparkConnectionStringBuilderTests
     {
