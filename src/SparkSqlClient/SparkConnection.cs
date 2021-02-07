@@ -39,7 +39,7 @@ namespace SparkSqlClient
 
         public override string ServerVersion => throw new NotSupportedException($"{nameof(SparkConnection)} does not support reading {nameof(ServerVersion)}");
 
-        public override ConnectionState State => (_rawClient.OutputProtocol?.Transport?.IsOpen ?? false) && SessionHandle != null ? ConnectionState.Open : ConnectionState.Closed;
+        public override ConnectionState State => SessionHandle != null ? ConnectionState.Open : ConnectionState.Closed;
 
 
 
@@ -69,12 +69,14 @@ namespace SparkSqlClient
 
         public override async Task CloseAsync()
         {
-            if (State == ConnectionState.Open && SessionHandle != null)
+            if (SessionHandle != null)
             {
+                
                 await Client.CloseSessionAsync(new TCloseSessionReq
                 {
                     SessionHandle = SessionHandle
                 }, CancellationToken.None).ConfigureAwait(false);
+                SessionHandle = null;
             }
         }
 
@@ -116,7 +118,17 @@ namespace SparkSqlClient
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            if (disposing) _rawClient.Dispose();
+            if (disposing)
+            {
+                Close();
+                _rawClient.Dispose();
+            }
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            await CloseAsync();
+            _rawClient.Dispose();
         }
     }
 }

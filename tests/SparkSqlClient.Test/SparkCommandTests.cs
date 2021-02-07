@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
 using System.Linq;
 using System.Net.Sockets;
 using System.Text;
@@ -90,16 +92,21 @@ namespace SparkSqlClient.Test
             cmd.Parameters.Add(param);
 
             // Act
-            await using var resultReader = await cmd.ExecuteReaderAsync();
+            using var resultReader = cmd.ExecuteReader();
+            using var resultReaderAsync = await cmd.ExecuteReaderAsync();
 
             // Assert
             Assert.True(await resultReader.ReadAsync());
-
             Assert.Equal("This is \" @MyValue \" string", resultReader["@MyValue string"]);
             Assert.Equal("This is also \' @MyValue \' string", resultReader["also @MyValue string"]);
             Assert.Equal(15, resultReader["MyValue"]);
-
             Assert.False(await resultReader.ReadAsync());
+
+            Assert.True(await resultReaderAsync.ReadAsync());
+            Assert.Equal("This is \" @MyValue \" string", resultReaderAsync["@MyValue string"]);
+            Assert.Equal("This is also \' @MyValue \' string", resultReaderAsync["also @MyValue string"]);
+            Assert.Equal(15, resultReaderAsync["MyValue"]);
+            Assert.False(await resultReaderAsync.ReadAsync());
         }
 
         [Fact]

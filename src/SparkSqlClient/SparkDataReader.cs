@@ -144,7 +144,7 @@ namespace SparkSqlClient
                     case TTypeId.INTERVAL_DAY_TIME_TYPE:
                         return new UnsupportedColumnMetadata(colSchema.ColumnName, "intervaldaytime");
                     default:
-                        return new UnsupportedColumnMetadata(colSchema.ColumnName, TTypeId.INTERVAL_DAY_TIME_TYPE.ToString());
+                        return new UnsupportedColumnMetadata(colSchema.ColumnName, typeId?.ToString());
                 }
             }).ToArray();
         }
