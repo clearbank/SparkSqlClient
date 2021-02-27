@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using SparkSqlClient;
 using SparkSqlClient.Test.Fixtures;
 using Xunit;
@@ -41,6 +44,38 @@ namespace SparkSqlClient.Test
             Assert.Equal(ConnectionState.Open, conn.State);
         }
 
+        [Fact]
+        public async Task ShouldAcceptAccessToken()
+        {
+            var httpClient = new HttpClient();
+            var response = await httpClient.PostAsync($"https://login.microsoftonline.com/{Config.AccessTokenCredentials.Tenant}/oauth2/v2.0/token", new FormUrlEncodedContent(new Dictionary<string, string>()
+            {
+                { "grant_type", "client_credentials" },
+                { "scope", "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d/.default"},
+                { "client_id", Config.AccessTokenCredentials.ClientId},
+                { "client_secret", Config.AccessTokenCredentials.ClientSecret},
+                
+            }));
+            response.EnsureSuccessStatusCode();
+            var accessToken = JsonConvert.DeserializeObject<JObject>(await response.Content.ReadAsStringAsync())["access_token"].ToString();
+            
+
+            // Arrange
+            var connectionStringBuilder = new SparkConnectionStringBuilder(Config.ConnectionString);
+            await using var conn = new SparkConnection($"Data Source={connectionStringBuilder.DataSource}");
+            conn.AccessToken = accessToken;
+           
+            // Assert and Act  
+            conn.Open();
+            Assert.Equal(ConnectionState.Open, conn.State);
+        }
+
+        [Fact]
+        public void ConnectionStringShouldContainDatasource()
+        {
+            // Act and Assert
+            Assert.Throws<ArgumentException>(() => new SparkConnection("Username=token"));
+        }
 
         [Fact]
         public async Task ConnectionStringShouldBeReadonly()

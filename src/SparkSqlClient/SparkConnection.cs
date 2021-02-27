@@ -41,21 +41,40 @@ namespace SparkSqlClient
 
         public override ConnectionState State => SessionHandle != null ? ConnectionState.Open : ConnectionState.Closed;
 
+        private string _accessToken;
 
+        /// <summary>
+        /// Gets or sets the access token. Access token is the Bearer token sent to the server for authentication.
+        /// </summary>
+        public string AccessToken {
+            get => _accessToken;
+            set
+            {
+                _accessToken = value;
+                ConfigureClientAuth(_rawClient, ConnectionStringBuilder, AccessToken);
+            }
+        }
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SparkConnection"/> class.
+        /// </summary>
+        /// <param name="connectionString">The connection string.</param>
+        /// <exception cref="ArgumentException">Connection string must define a Data Source - connectionString</exception>
         public SparkConnection(string connectionString)
         {
             ConnectionStringBuilder = new SparkConnectionStringBuilder(connectionString);
 
-            var authHeader = "Basic " + Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($"{ConnectionStringBuilder.UserId}:{ConnectionStringBuilder.Password}"));
-            _rawClient = new TCLIService.Client(new TBinaryProtocol(new THttpTransport(new Uri(ConnectionStringBuilder.DataSource), new Dictionary<string, string>
+            if (string.IsNullOrWhiteSpace(ConnectionStringBuilder.DataSource))
             {
-                { "Authorization", authHeader }
-            })));
+                throw new ArgumentException("Connection string must define a Data Source", nameof(connectionString));
+            }
 
+            var httpTransport = new THttpTransport(new Uri(ConnectionStringBuilder.DataSource));
+           _rawClient = new TCLIService.Client(new TBinaryProtocol(httpTransport));
             Client = new TCLIServiceSync(_rawClient);
-        }
 
+            ConfigureClientAuth(_rawClient, ConnectionStringBuilder, AccessToken);
+        }
 
         public override void ChangeDatabase(string databaseName)
         {
@@ -88,11 +107,7 @@ namespace SparkSqlClient
         public override async Task OpenAsync(CancellationToken cancellationToken)
         {
             await _rawClient.OpenTransportAsync(cancellationToken).ConfigureAwait(false);
-            var sessionResponse = await Client.OpenSessionAsync(new TOpenSessionReq()
-            {
-                Username = ConnectionStringBuilder.UserId,
-                Password = ConnectionStringBuilder.Password
-            }, cancellationToken).ConfigureAwait(false);
+            var sessionResponse = await Client.OpenSessionAsync(new TOpenSessionReq(), cancellationToken).ConfigureAwait(false);
 
             SparkOperationException.ThrowIfInvalidStatus(sessionResponse.Status);
             SessionHandle = sessionResponse.SessionHandle;
@@ -129,6 +144,26 @@ namespace SparkSqlClient
         {
             await CloseAsync();
             _rawClient.Dispose();
+        }
+
+        private static void ConfigureClientAuth(TCLIService.Client client, SparkConnectionStringBuilder connectionString, string accessToken)
+        {
+            var transport = client.InputProtocol.Transport as THttpTransport
+               ?? throw new Exception($"Unable to set authentication on {client.InputProtocol.Transport.GetType()}");
+
+            if (accessToken != null)
+            {
+                transport.RequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            }
+            else if (connectionString.UserId != null && connectionString.Password != null)
+            {
+                var basicAuthValue = Convert.ToBase64String(ASCIIEncoding.ASCII.GetBytes($"{connectionString.UserId}:{connectionString.Password}"));
+                transport.RequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", basicAuthValue);
+            }
+            else
+            {
+                transport.RequestHeaders.Authorization = null;
+            }
         }
     }
 }
