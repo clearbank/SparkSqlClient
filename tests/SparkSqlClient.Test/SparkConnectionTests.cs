@@ -44,7 +44,7 @@ namespace SparkSqlClient.Test
             Assert.Equal(ConnectionState.Open, conn.State);
         }
 
-        [Fact]
+        [Fact(Skip ="No access - temporary")]
         public async Task ShouldAcceptAccessToken()
         {
             var httpClient = new HttpClient();
