@@ -30,4 +30,4 @@ jobs:
     - name: Test
       env:
         ConnectionStrings__Spark: ${{ secrets.ConnectionStrings__Spark }}
-      run: dotnet test --no-build --verbosity normal
+      run: dotnet test --no-build --verbosity detailed
