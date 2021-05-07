@@ -27,7 +27,7 @@ namespace SparkSqlClient.Test
             DataFactory = dataFactory;
         }
 
-        [Fact(Skip = "test")]
+        [Fact]
         public async Task OpenCloseShouldChangeState()
         {
             // Arrange
@@ -44,7 +44,7 @@ namespace SparkSqlClient.Test
             Assert.Equal(ConnectionState.Open, conn.State);
         }
 
-        [Fact(Skip ="test")]
+        [Fact]
         public async Task ShouldAcceptAccessToken()
         {
             var httpClient = new HttpClient();
