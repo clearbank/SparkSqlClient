@@ -30,4 +30,4 @@ jobs:
     - name: Test
       env:
         ConnectionStrings__Spark: ${{ secrets.ConnectionStrings__Spark }}
-      run: dotnet test --no-build --verbosity detailed --filter FullyQualifiedName~SparkSqlClient.Test.SparkConnectionTests'
+      run: dotnet test --no-build --verbosity detailed --filter FullyQualifiedName~SparkSqlClient.Test.SparkConnectionTests
