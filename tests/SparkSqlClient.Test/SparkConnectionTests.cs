@@ -56,7 +56,9 @@ namespace SparkSqlClient.Test
                 { "client_secret", Config.AccessTokenCredentials.ClientSecret},
                 
             }));
-            response.EnsureSuccessStatusCode();
+            if (response.IsSuccessStatusCode == false)
+                throw new Exception($"{response.StatusCode}:{await response.Content.ReadAsStringAsync()}");
+            //response.EnsureSuccessStatusCode();
             var accessToken = JsonConvert.DeserializeObject<JObject>(await response.Content.ReadAsStringAsync())["access_token"].ToString();
             
 
